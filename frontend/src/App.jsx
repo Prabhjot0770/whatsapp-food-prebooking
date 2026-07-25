@@ -6,6 +6,7 @@ import {
   Bell, X, Wifi, WifiOff, Bot, Circle
 } from 'lucide-react';
 import { Toaster, toast } from 'react-hot-toast';
+import { API_BASE_URL, WS_BASE_URL } from './config';
 import Dashboard from './pages/Dashboard';
 import Orders from './pages/Orders';
 import Menu from './pages/Menu';
@@ -32,7 +33,7 @@ function App() {
   useEffect(() => {
     let ws;
     const connect = () => {
-      ws = new WebSocket('ws://localhost:8000/ws');
+      ws = new WebSocket(WS_BASE_URL);
       ws.onopen = () => setWsStatus('online');
       ws.onclose = () => { setWsStatus('offline'); setTimeout(connect, 3000); };
       ws.onerror = () => setWsStatus('offline');

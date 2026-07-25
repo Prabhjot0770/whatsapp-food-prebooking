@@ -4,6 +4,7 @@ import {
   PieChart, Pie, Cell, Legend
 } from 'recharts';
 import { TrendingUp, Award, Clock, Users } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 const COLORS = ['#a855f7', '#ec4899', '#6366f1', '#14b8a6', '#f59e0b', '#10b981'];
 
@@ -15,8 +16,8 @@ function Analytics() {
     const fetchAll = async () => {
       try {
         const [ordersRes, menuRes] = await Promise.all([
-          fetch('http://localhost:8000/api/orders'),
-          fetch('http://localhost:8000/api/menu'),
+          fetch(`${API_BASE_URL}/api/orders`),
+          fetch(`${API_BASE_URL}/api/menu`),
         ]);
         setOrders(await ordersRes.json());
         setMenuItems(await menuRes.json());

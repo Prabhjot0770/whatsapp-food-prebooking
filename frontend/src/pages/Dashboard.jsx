@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { API_BASE_URL } from '../config';
 
 function Dashboard() {
   const [stats, setStats] = useState({ total_orders: 0, total_revenue: 0, total_students: 0 });
@@ -18,7 +19,7 @@ function Dashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const statsRes = await fetch('http://localhost:8000/api/stats');
+        const statsRes = await fetch(`${API_BASE_URL}/api/stats`);
         const statsData = await statsRes.json();
         setStats(statsData);
       } catch (error) {

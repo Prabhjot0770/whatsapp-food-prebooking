@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Search } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 function Menu() {
   const [menuItems, setMenuItems] = useState([]);
@@ -8,7 +9,7 @@ function Menu() {
   useEffect(() => {
     const fetchMenu = async () => {
       try {
-        const res = await fetch('http://localhost:8000/api/menu');
+        const res = await fetch(`${API_BASE_URL}/api/menu`);
         const data = await res.json();
         setMenuItems(data);
       } catch (error) {
@@ -63,7 +64,7 @@ function Menu() {
               <button 
                 onClick={async () => {
                   try {
-                    const res = await fetch(`http://localhost:8000/api/menu/${item.id}/toggle`, { method: 'POST' });
+                    const res = await fetch(`${API_BASE_URL}/api/menu/${item.id}/toggle`, { method: 'POST' });
                     const data = await res.json();
                     setMenuItems(menuItems.map(m => m.id === item.id ? {...m, is_available: data.is_available} : m));
                   } catch (e) { console.error(e) }

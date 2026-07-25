@@ -3,6 +3,7 @@ import {
   Users, Search, Phone, GraduationCap,
   ShoppingBag, IndianRupee, TrendingUp, Star
 } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 function Students() {
   const [orders, setOrders] = useState([]);
@@ -12,7 +13,7 @@ function Students() {
   useEffect(() => {
     const fetch_ = async () => {
       try {
-        const res = await fetch('http://localhost:8000/api/orders');
+        const res = await fetch(`${API_BASE_URL}/api/orders`);
         setOrders(await res.json());
       } catch (e) { console.error(e); }
     };

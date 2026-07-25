@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Search } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 function Orders() {
   const [orders, setOrders] = useState([]);
@@ -9,7 +10,7 @@ function Orders() {
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const ordersRes = await fetch('http://localhost:8000/api/orders');
+        const ordersRes = await fetch(`${API_BASE_URL}/api/orders`);
         const ordersData = await ordersRes.json();
         setOrders(ordersData);
       } catch (error) {
