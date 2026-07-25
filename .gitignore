@@ -1,0 +1,17 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Node
+node_modules/
+dist/
+.output/
+
+# macOS / OS
+.DS_Store
+.env
+
+# Database (optional - keep if you want demo DB, or ignore if sensitive)
+# backend/food_booking.db
