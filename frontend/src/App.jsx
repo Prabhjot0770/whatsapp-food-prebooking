@@ -1,12 +1,13 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Routes, Route, NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, ShoppingBag, UtensilsCrossed,
   BarChart2, MessageSquare, Users, Settings,
-  Bell, X, Wifi, WifiOff, Bot, Circle
+  Bell, X, Wifi, WifiOff, Bot, LogOut, Shield, UserCheck
 } from 'lucide-react';
 import { Toaster, toast } from 'react-hot-toast';
 import { API_BASE_URL, WS_BASE_URL } from './config';
+import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Orders from './pages/Orders';
 import Menu from './pages/Menu';
@@ -17,6 +18,15 @@ import SettingsPage from './pages/Settings';
 import './index.css';
 
 function App() {
+  const [authState, setAuthState] = useState(() => {
+    try {
+      const saved = localStorage.getItem('lpu_bot_auth');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
   const [wsStatus, setWsStatus] = useState('connecting');
   const [notifications, setNotifications] = useState([]);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -29,8 +39,9 @@ function App() {
     return () => clearInterval(t);
   }, []);
 
-  // WebSocket
+  // WebSocket connection
   useEffect(() => {
+    if (!authState) return;
     let ws;
     const connect = () => {
       ws = new WebSocket(WS_BASE_URL);
@@ -56,12 +67,30 @@ function App() {
     };
     connect();
     return () => ws && ws.close();
-  }, []);
+  }, [authState]);
+
+  const handleLoginSuccess = (data) => {
+    setAuthState(data);
+    toast.success('Welcome back, Admin! Harvard Portal Authenticated.', {
+      icon: '🏛️',
+      style: { borderRadius: '12px', background: '#180e22', color: '#f1e4c3', border: '1px solid #C5A059' }
+    });
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('lpu_bot_auth');
+    setAuthState(null);
+    toast('Logged out of Executive Portal', { icon: '🔒' });
+  };
 
   const markAllRead = () => {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     setUnreadCount(0);
   };
+
+  if (!authState) {
+    return <Login onLoginSuccess={handleLoginSuccess} />;
+  }
 
   const navLinks = [
     { to: '/', icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
@@ -80,17 +109,28 @@ function App() {
       {/* Sidebar */}
       <aside className="sidebar glass-card">
         <div className="sidebar-header">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', marginBottom: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', marginBottom: '0.4rem' }}>
             <div style={{
-              width: 36, height: 36, borderRadius: '10px',
-              background: 'linear-gradient(135deg, #a855f7, #6366f1)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center'
+              width: 38, height: 38, borderRadius: '12px',
+              background: 'linear-gradient(135deg, #A51C30, #600a16)',
+              border: '1px solid #C5A059',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 4px 12px rgba(165, 28, 48, 0.4)'
             }}>
-              <Bot size={20} color="#fff" />
+              <Shield size={20} color="#C5A059" />
             </div>
-            <h2 style={{ margin: 0 }}>LPU FoodBot</h2>
+            <h2 style={{ margin: 0, fontSize: '1.2rem', letterSpacing: '-0.3px' }}>LPU FoodBot</h2>
           </div>
-          <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', textAlign: 'center' }}>Admin Dashboard</p>
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+            background: 'rgba(197,160,89,0.12)', border: '1px solid rgba(197,160,89,0.3)',
+            borderRadius: '999px', padding: '0.2rem 0.65rem'
+          }}>
+            <UserCheck size={11} color="#C5A059" />
+            <span style={{ fontSize: '0.68rem', color: '#f1e4c3', fontWeight: 600, letterSpacing: '0.5px' }}>
+              HARVARD PORTAL • {authState.user?.username?.toUpperCase() || 'ADMIN'}
+            </span>
+          </div>
         </div>
 
         <nav className="sidebar-nav">
@@ -107,29 +147,47 @@ function App() {
           ))}
         </nav>
 
-        {/* Sidebar Bottom: Status */}
-        <div style={{ marginTop: 'auto', paddingTop: '1.5rem', borderTop: '1px solid var(--glass-border)' }}>
+        {/* Sidebar Bottom: Clock, Status & Logout */}
+        <div style={{ marginTop: 'auto', paddingTop: '1.25rem', borderTop: '1px solid var(--glass-border)' }}>
           {/* Clock */}
-          <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
-            <p style={{ fontSize: '1.4rem', fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: '#fff' }}>
+          <div style={{ textAlign: 'center', marginBottom: '0.85rem' }}>
+            <p style={{ fontSize: '1.3rem', fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: '#fff' }}>
               {time.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </p>
             <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
               {time.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
             </p>
           </div>
+
           {/* Connection status */}
           <div style={{
             display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center',
-            padding: '0.5rem 0.75rem', borderRadius: '8px',
+            padding: '0.45rem 0.75rem', borderRadius: '8px', marginBottom: '0.75rem',
             background: wsStatus === 'online' ? 'rgba(74,222,128,0.1)' : 'rgba(239,68,68,0.1)',
             border: `1px solid ${wsStatus === 'online' ? 'rgba(74,222,128,0.3)' : 'rgba(239,68,68,0.3)'}`,
           }}>
             {wsStatus === 'online'
-              ? <><Wifi size={14} color="#4ade80" /><span style={{ fontSize: '0.78rem', color: '#4ade80', fontWeight: 600 }}>Backend Online</span></>
-              : <><WifiOff size={14} color="#f87171" /><span style={{ fontSize: '0.78rem', color: '#f87171', fontWeight: 600 }}>Reconnecting…</span></>
+              ? <><Wifi size={13} color="#4ade80" /><span style={{ fontSize: '0.76rem', color: '#4ade80', fontWeight: 600 }}>Backend Online</span></>
+              : <><WifiOff size={13} color="#f87171" /><span style={{ fontSize: '0.76rem', color: '#f87171', fontWeight: 600 }}>Reconnecting…</span></>
             }
           </div>
+
+          {/* Logout Button */}
+          <button
+            onClick={handleLogout}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+              padding: '0.55rem 0.85rem', borderRadius: '10px',
+              background: 'rgba(165, 28, 48, 0.2)', border: '1px solid rgba(165, 28, 48, 0.4)',
+              color: '#fca5a5', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(165, 28, 48, 0.4)'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(165, 28, 48, 0.2)'}
+          >
+            <LogOut size={15} />
+            <span>Sign Out</span>
+          </button>
         </div>
       </aside>
 

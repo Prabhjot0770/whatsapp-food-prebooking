@@ -9,8 +9,31 @@ from database import engine, get_db, Base
 import models
 from chatbot import process_message
 
+from auth_router import router as auth_router
+from auth import get_password_hash
+
 # Create all tables (if they don't exist yet)
 Base.metadata.create_all(bind=engine)
+
+# Auto-seed default admin user if not present
+def seed_admin_user():
+    db = next(get_db())
+    try:
+        admin_user = db.query(models.User).filter(models.User.username == "admin").first()
+        if not admin_user:
+            new_admin = models.User(
+                username="admin",
+                password_hash=get_password_hash("admin123"),
+                role="superadmin"
+            )
+            db.add(new_admin)
+            db.commit()
+    except Exception as e:
+        print("Seed user exception:", e)
+    finally:
+        db.close()
+
+seed_admin_user()
 
 app = FastAPI(title="Smart WhatsApp Food Pre-Booking System")
 
@@ -21,6 +44,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(auth_router)
 
 class ConnectionManager:
     def __init__(self):
