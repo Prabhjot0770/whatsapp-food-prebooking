@@ -104,6 +104,10 @@ function App() {
 
   return (
     <div className="app-container">
+      {/* Global Ambient Glow */}
+      <div className="harvard-glow crimson-glow" />
+      <div className="harvard-glow gold-glow" />
+      
       <Toaster position="top-right" />
 
       {/* Sidebar */}

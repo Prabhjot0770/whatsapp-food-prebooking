@@ -2,6 +2,30 @@ import re
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, func
 import models
+import os
+from google import genai
+
+# Configure Gemini AI with your key (loaded from .env via main.py)
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+if GEMINI_API_KEY:
+    _genai_client = genai.Client(api_key=GEMINI_API_KEY)
+else:
+    _genai_client = None
+
+def ask_ai_recommendation(user_prompt: str, menu_context: str) -> str:
+    if not _genai_client:
+        return "AI is not configured yet. Please set GEMINI_API_KEY in your .env file."
+    system_instruction = (
+        "You are LPU FoodBot, a friendly campus food assistant.\n"
+        f"Here is the available campus food menu:\n{menu_context}\n\n"
+        "Answer the student's question accurately, suggest matching items with exact prices, "
+        "and keep responses concise for WhatsApp!"
+    )
+    response = _genai_client.models.generate_content(
+        model="gemini-1.5-flash",
+        contents=f"{system_instruction}\nStudent asks: {user_prompt}"
+    )
+    return response.text
 
 # In-memory state store (use Redis in production)
 user_states = {}
@@ -11,8 +35,13 @@ user_states = {}
 def _fmt_item(item):
     tag = "🥗" if item.category and "veg" in item.category.lower() else "🍽️"
     restaurant_name = item.restaurant.name if item.restaurant else "Unknown"
-    price = int(item.price) if item.price == int(item.price) else item.price
-    return f"{tag} {item.item_name} – ₹{price} ({restaurant_name})"
+    # Ensure price is a positive number; otherwise show N/A
+    try:
+        price_val = float(item.price)
+    except Exception:
+        price_val = 0
+    price_str = f"₹{int(price_val)}" if price_val > 0 else "₹N/A"
+    return f"{tag} {item.item_name} – {price_str} ({restaurant_name})"
 
 def _menu_block(items, header=""):
     lines = [header] if header else []
@@ -26,6 +55,17 @@ def _last_order(student, db):
         .filter(models.Order.student_id == student.id)
         .order_by(models.Order.created_at.desc())
         .first()
+    )
+
+def _main_menu_text():
+    return (
+        "🍔 *Welcome to LPU Food Booking Bot* 🍔\n\n"
+        "Please choose an option:\n\n"
+        "1️⃣ View Menu\n"
+        "2️⃣ Pre Book Food\n"
+        "3️⃣ Track Order\n"
+        "4️⃣ Help\n\n"
+        "(Type the option number)"
     )
 
 # ─── main entry point ────────────────────────────────────────────────────────
@@ -46,22 +86,28 @@ def process_message(sender_phone: str, message: str, db: Session) -> tuple[str, 
         db.commit()
         db.refresh(student)
 
-    state_info = user_states.get(sender_phone, {"state": "IDLE"})
-    current_state = state_info["state"]
+    # Global Resets & Overrides (These take precedence over any state)
+    if msg_lower in ["hi", "hello", "hey", "menu", "start", "0"]:
+        user_states[sender_phone] = {"state": "MAIN_MENU", "menu_map": {}}
+        return _main_menu_text(), False
+        
+    if msg_lower == "cancel":
+        user_states[sender_phone] = {"state": "IDLE"}
+        return "❌ Operation cancelled. Type *menu* to go back to the main menu.", False
 
-    # ── State: waiting for pickup time ───────────────────────────────────────
+    # Get Current State
+    state_info = user_states.get(sender_phone, {"state": "MAIN_MENU", "menu_map": {}})
+    current_state = state_info.get("state", "MAIN_MENU")
+    menu_map = state_info.get("menu_map", {})
+
+    # ── State: EXPECTING_PICKUP_TIME ───────────────────────────────────────
     if current_state == "EXPECTING_PICKUP_TIME":
-        # Allow cancellation mid-flow
-        if any(w in msg_lower for w in ["cancel", "no", "stop", "quit", "exit"]):
-            user_states[sender_phone] = {"state": "IDLE"}
-            return "No problem! Your order has been cancelled. Type *Hi* to start again. 😊", False
-
         pickup_time = msg
         order_items_data = state_info.get("order_items", [])
 
         if not order_items_data:
-            user_states[sender_phone] = {"state": "IDLE"}
-            return "Something went wrong. Let's start over — what would you like to order?", False
+            user_states[sender_phone] = {"state": "MAIN_MENU"}
+            return "Something went wrong. Let's start over. Type *menu*.", False
 
         restaurant_id = order_items_data[0].restaurant_id
         total_amount = sum(item.price for item in order_items_data)
@@ -84,7 +130,7 @@ def process_message(sender_phone: str, message: str, db: Session) -> tuple[str, 
             item_names.append(mi.item_name)
         db.commit()
 
-        user_states[sender_phone] = {"state": "IDLE"}
+        user_states[sender_phone] = {"state": "MAIN_MENU"}
         items_str = ", ".join(item_names)
         return (
             f"✅ *Order Confirmed!*\n\n"
@@ -92,60 +138,184 @@ def process_message(sender_phone: str, message: str, db: Session) -> tuple[str, 
             f"🍱 Items: {items_str}\n"
             f"⏰ Pickup Time: {pickup_time}\n"
             f"💰 Total: ₹{total_amount}\n\n"
-            f"Please collect your order at the selected time. Enjoy your meal! 😋"
+            f"Please collect your order at the selected time. Enjoy your meal! 😋\n\n"
+            f"(Type *menu* to return to the main menu)"
         ), True
 
-    # ── State: waiting for cancel confirmation ────────────────────────────────
+    # ── State: CONFIRM_CANCEL ────────────────────────────────────────────────
     if current_state == "CONFIRM_CANCEL":
         order = state_info.get("order")
         if any(w in msg_lower for w in ["yes", "confirm", "ok", "yeah", "haan"]):
             if order:
                 order.status = "CANCELLED"
                 db.commit()
-            user_states[sender_phone] = {"state": "IDLE"}
-            return f"❌ Order #LPU{order.id} has been cancelled. Sorry to see you go! Type *Hi* to place a new order.", False
+            user_states[sender_phone] = {"state": "MAIN_MENU"}
+            return f"❌ Order #LPU{order.id} has been cancelled. Sorry to see you go! Type *menu* to start over.", False
         else:
-            user_states[sender_phone] = {"state": "IDLE"}
-            return "✅ No worries! Your order is still active. Type *track* to check its status.", False
+            user_states[sender_phone] = {"state": "MAIN_MENU"}
+            return "✅ No worries! Your order is still active. Type *menu* to go back.", False
 
     # ════════════════════════════════════════════════════════════════════════
-    #  INTENT DETECTION
+    #  STRUCTURED NUMERICAL NAVIGATION (STATE MACHINE)
+    # ════════════════════════════════════════════════════════════════════════
+    
+    if current_state == "MAIN_MENU":
+        if msg == "1" or msg == "2":
+            # Flow: Select Area
+            areas = db.query(models.Restaurant.area).filter(models.Restaurant.area != None).distinct().all()
+            if not areas:
+                return "No areas available right now. Type *menu* to go back.", False
+                
+            lines = ["📍 *Select an Area*\n"]
+            new_map = {}
+            for i, (area_name,) in enumerate(areas, 1):
+                # Clean up empty strings just in case
+                if area_name.strip():
+                    lines.append(f"{i}. {area_name}")
+                    new_map[str(i)] = area_name
+                    
+            lines.append("\n_Type a number to select_")
+            user_states[sender_phone] = {"state": "SELECT_AREA", "menu_map": new_map}
+            return "\n".join(lines), False
+            
+        elif msg == "3":
+            # Track Order
+            last = _last_order(student, db)
+            if not last:
+                return "You don't have any recent orders. Type *menu* to place your first order! 😊", False
+            status_emoji = {"CONFIRMED": "✅", "PENDING": "⏳", "CANCELLED": "❌"}.get(last.status, "📦")
+            item_names = ", ".join(i.menu_item.item_name for i in last.items) if last.items else "N/A"
+            return (
+                f"📦 *Your Latest Order*\n\n"
+                f"🆔 Order #LPU{last.id}\n"
+                f"🍱 Items: {item_names}\n"
+                f"⏰ Pickup: {last.pickup_time}\n"
+                f"💰 Total: ₹{last.total_amount}\n"
+                f"{status_emoji} Status: *{last.status}*\n\n"
+                f"(Type *menu* to return)"
+            ), False
+            
+        elif msg == "4":
+            # Help
+            return (
+                "🤖 *LPU Food Bot – Help Guide*\n\n"
+                "I am now fully menu-driven! Simply reply with the *number* corresponding to your choice in the menu.\n\n"
+                "• Type *menu* at any time to start over.\n"
+                "• Type *cancel* to stop the current flow.\n\n"
+                "I can still answer general queries if you type a normal sentence!"
+            ), False
+    
+    elif current_state == "SELECT_AREA":
+        if msg in menu_map:
+            selected_area = menu_map[msg]
+            restaurants = db.query(models.Restaurant).filter(models.Restaurant.area == selected_area).all()
+            if not restaurants:
+                return f"No restaurants found in {selected_area}. Type *menu* to go back.", False
+                
+            lines = [f"🍽️ *Restaurants in {selected_area}*\n"]
+            new_map = {}
+            for i, r in enumerate(restaurants, 1):
+                lines.append(f"{i}. {r.name}")
+                new_map[str(i)] = r.id
+                
+            lines.append("\n_Type a number to select_")
+            user_states[sender_phone] = {
+                "state": "SELECT_RESTAURANT", 
+                "menu_map": new_map, 
+                "area": selected_area
+            }
+            return "\n".join(lines), False
+
+    elif current_state == "SELECT_RESTAURANT":
+        if msg in menu_map:
+            selected_restaurant_id = menu_map[msg]
+            restaurant = db.query(models.Restaurant).filter(models.Restaurant.id == selected_restaurant_id).first()
+            
+            categories = db.query(models.MenuItem.category).filter(
+                models.MenuItem.restaurant_id == selected_restaurant_id,
+                models.MenuItem.is_available == True,
+                models.MenuItem.price > 0
+            ).distinct().all()
+            
+            if not categories:
+                return f"No menu available for {restaurant.name} right now. Type *menu* to go back.", False
+                
+            lines = [f"📋 *Categories in {restaurant.name}*\n"]
+            new_map = {}
+            idx = 1
+            for (cat_name,) in categories:
+                if cat_name and cat_name.strip():
+                    lines.append(f"{idx}. {cat_name}")
+                    new_map[str(idx)] = cat_name
+                    idx += 1
+                    
+            lines.append("\n_Type a number to select_")
+            user_states[sender_phone] = {
+                "state": "SELECT_CATEGORY", 
+                "menu_map": new_map, 
+                "restaurant_id": selected_restaurant_id,
+                "restaurant_name": restaurant.name
+            }
+            return "\n".join(lines), False
+
+    elif current_state == "SELECT_CATEGORY":
+        if msg in menu_map:
+            selected_category = menu_map[msg]
+            restaurant_id = state_info.get("restaurant_id")
+            restaurant_name = state_info.get("restaurant_name", "Unknown")
+            
+            items = db.query(models.MenuItem).filter(
+                models.MenuItem.restaurant_id == restaurant_id,
+                models.MenuItem.category == selected_category,
+                models.MenuItem.is_available == True,
+                models.MenuItem.price > 0
+            ).all()
+            
+            if not items:
+                return "No items available in this category. Type *menu* to go back.", False
+                
+            lines = [f"🍕 *Items in {selected_category} ({restaurant_name})*\n"]
+            new_map = {}
+            for i, item in enumerate(items, 1):
+                price_val = float(item.price)
+                lines.append(f"{i}. {item.item_name} - ₹{int(price_val)}")
+                new_map[str(i)] = item.id
+                
+            lines.append("\n_Type a number to select an item to order_")
+            user_states[sender_phone] = {
+                "state": "SELECT_ITEM", 
+                "menu_map": new_map
+            }
+            return "\n".join(lines), False
+
+    elif current_state == "SELECT_ITEM":
+        if msg in menu_map:
+            item_id = menu_map[msg]
+            item = db.query(models.MenuItem).filter(models.MenuItem.id == item_id).first()
+            if not item:
+                return "Item not found. Type *menu* to go back.", False
+                
+            user_states[sender_phone] = {
+                "state": "EXPECTING_PICKUP_TIME",
+                "order_items": [item]
+            }
+            return (
+                f"😋 *You selected:* {item.item_name} - ₹{int(item.price)}\n\n"
+                f"⏰ *What time would you like to pick up?*\n"
+                f"(e.g. _12:30 PM_, _1:00 PM_, _5 PM_)\n\n"
+                f"_Type 'cancel' to abort._"
+            ), False
+
+    # ════════════════════════════════════════════════════════════════════════
+    #  FALLBACK TO NLP & LEGACY COMMANDS IF NOT A NUMBER
     # ════════════════════════════════════════════════════════════════════════
 
-    # ── Greetings ─────────────────────────────────────────────────────────
-    if msg_lower in ["hi", "hello", "hey", "hii", "helo", "start", "1"] or msg_lower == "menu":
-        return (
-            "👋 *Welcome to LPU Food Pre-Booking Bot!*\n\n"
-            "Here's what I can do:\n\n"
-            "🍔 *Order Food* – just say what you want\n"
-            "   e.g. _I want Paneer Tikka_\n\n"
-            "📋 *Browse Menu* – by category, restaurant, or budget\n"
-            "   e.g. _Show me veg items_\n"
-            "   e.g. _What's under ₹100?_\n"
-            "   e.g. _Show menu of Punjabi Dhaba_\n\n"
-            "📦 *Track Order* – type _track_\n\n"
-            "❌ *Cancel Order* – type _cancel_\n\n"
-            "❓ *Help* – type _help_"
-        ), False
+    # Only process NLP if the user didn't type a number, or if they typed a number that was invalid for the current menu.
+    if msg.isdigit():
+        return f"⚠️ Invalid option. Please select a valid number from the menu, or type *menu* to start over.", False
 
-    # ── Help ──────────────────────────────────────────────────────────────
-    if "help" in msg_lower or msg_lower == "4":
-        return (
-            "🤖 *LPU Food Bot – Help Guide*\n\n"
-            "You can talk to me naturally! Here are examples:\n\n"
-            "• _I want a Veg Burger_\n"
-            "• _Show me pizza options_\n"
-            "• _What's cheapest under ₹80?_\n"
-            "• _Show me non-veg items_\n"
-            "• _Show menu of Taste of Punjab_\n"
-            "• _Track my order_\n"
-            "• _Cancel my order_\n"
-            "• _What restaurants are available?_\n\n"
-            "Type *Hi* to go back to the main menu."
-        ), False
-
-    # ── Cancel order ──────────────────────────────────────────────────────
-    if any(w in msg_lower for w in ["cancel", "cancel order", "cancel my order"]):
+    # Legacy NLP commands...
+    if any(w in msg_lower for w in ["cancel order", "cancel my order"]):
         last = _last_order(student, db)
         if not last:
             return "You don't have any active orders to cancel.", False
@@ -161,11 +331,10 @@ def process_message(sender_phone: str, message: str, db: Session) -> tuple[str, 
             ), False
         return f"Order #LPU{last.id} is currently *{last.status}* and cannot be cancelled.", False
 
-    # ── Track order ───────────────────────────────────────────────────────
-    if any(w in msg_lower for w in ["track", "status", "my order", "order status", "where is my"]) or msg_lower == "3":
+    if any(w in msg_lower for w in ["track", "status", "my order", "where is my"]):
         last = _last_order(student, db)
         if not last:
-            return "You don't have any recent orders. Type *Hi* to place your first order! 😊", False
+            return "You don't have any recent orders. Type *menu* to place your first order! 😊", False
         status_emoji = {"CONFIRMED": "✅", "PENDING": "⏳", "CANCELLED": "❌"}.get(last.status, "📦")
         item_names = ", ".join(i.menu_item.item_name for i in last.items) if last.items else "N/A"
         return (
@@ -177,171 +346,15 @@ def process_message(sender_phone: str, message: str, db: Session) -> tuple[str, 
             f"{status_emoji} Status: *{last.status}*"
         ), False
 
-    # ── What restaurants are available? ───────────────────────────────────
-    if any(w in msg_lower for w in ["restaurant", "restaurants", "stalls", "outlets", "canteen", "which restaurant"]):
-        restaurants = db.query(models.Restaurant).all()
-        if not restaurants:
-            return "No restaurants are registered yet.", False
-        lines = ["🏪 *Available Restaurants on Campus:*\n"]
-        for r in restaurants:
-            lines.append(f"• {r.name}")
-        lines.append("\nType _Show menu of [restaurant name]_ to see their items!")
-        return "\n".join(lines), False
+    # AI fallback for complex queries
+    if len(msg.split()) > 3 or "?" in msg_lower:
+        menu_items = db.query(models.MenuItem).filter(models.MenuItem.is_available == True).limit(50).all()
+        menu_context = _menu_block(menu_items, "📋 Menu Overview (limited)")
+        ai_response = ask_ai_recommendation(msg, menu_context)
+        return ai_response, False
 
-    # ── Show menu of a specific restaurant ───────────────────────────────
-    restaurant_match = re.search(r"(?:menu of|from|at)\s+(.+)", msg_lower)
-    if restaurant_match:
-        restaurant_name = restaurant_match.group(1).strip()
-        restaurant = db.query(models.Restaurant).filter(
-            models.Restaurant.name.ilike(f"%{restaurant_name}%")
-        ).first()
-        if restaurant:
-            items = db.query(models.MenuItem).filter(
-                models.MenuItem.restaurant_id == restaurant.id,
-                models.MenuItem.is_available == True
-            ).limit(15).all()
-            if items:
-                header = f"📋 *Menu – {restaurant.name}* (showing up to 15 items)\n"
-                return _menu_block(items, header), False
-            return f"No available items at {restaurant.name} right now.", False
-
-    # ── Budget filter: under ₹X ───────────────────────────────────────────
-    budget_match = re.search(r"(?:under|below|less than|cheapest|cheap|budget|₹?rs?\.?\s*)(\d+)", msg_lower)
-    if budget_match:
-        budget = int(budget_match.group(1))
-        items = (
-            db.query(models.MenuItem)
-            .filter(models.MenuItem.price <= budget, models.MenuItem.is_available == True)
-            .order_by(models.MenuItem.price.asc())
-            .limit(10)
-            .all()
-        )
-        if items:
-            header = f"💸 *Items under ₹{budget}* (cheapest first):\n"
-            return _menu_block(items, header) + "\n\nJust tell me what you want to order! 😊", False
-        return f"No available items under ₹{budget} right now. Try a higher budget.", False
-
-    # ── Veg filter ────────────────────────────────────────────────────────
-    if any(w in msg_lower for w in ["veg", "vegetarian", "only veg", "pure veg", "no meat"]):
-        items = (
-            db.query(models.MenuItem)
-            .filter(models.MenuItem.category.ilike("%veg%"), models.MenuItem.is_available == True)
-            .limit(12)
-            .all()
-        )
-        if items:
-            header = "🥗 *Vegetarian Items Available:*\n"
-            return _menu_block(items, header) + "\n\nTell me what you'd like to order!", False
-        return "No vegetarian items found. Please try again later.", False
-
-    # ── Non-veg filter ────────────────────────────────────────────────────
-    if any(w in msg_lower for w in ["non veg", "non-veg", "chicken", "mutton", "egg", "meat", "fish"]):
-        keyword_items = (
-            db.query(models.MenuItem)
-            .filter(
-                or_(
-                    models.MenuItem.item_name.ilike("%chicken%"),
-                    models.MenuItem.item_name.ilike("%mutton%"),
-                    models.MenuItem.item_name.ilike("%egg%"),
-                    models.MenuItem.item_name.ilike("%fish%"),
-                    models.MenuItem.item_name.ilike("%prawn%"),
-                ),
-                models.MenuItem.is_available == True
-            )
-            .limit(12)
-            .all()
-        )
-        if keyword_items:
-            header = "🍗 *Non-Vegetarian Items Available:*\n"
-            return _menu_block(keyword_items, header) + "\n\nTell me what you'd like to order!", False
-        return "No non-veg items found right now. Please try again later.", False
-
-    # ── Category browse (snacks, drinks, biryani, etc.) ──────────────────
-    category_keywords = ["snack", "drink", "beverage", "dessert", "breakfast", "lunch", "dinner",
-                         "coffee", "tea", "juice", "burger", "pizza", "sandwich", "roll",
-                         "biryani", "thali", "paratha", "noodle", "maggi", "pasta"]
-    for cat in category_keywords:
-        if cat in msg_lower:
-            items = (
-                db.query(models.MenuItem)
-                .filter(
-                    or_(
-                        models.MenuItem.item_name.ilike(f"%{cat}%"),
-                        models.MenuItem.category.ilike(f"%{cat}%")
-                    ),
-                    models.MenuItem.is_available == True
-                )
-                .limit(10)
-                .all()
-            )
-            if items:
-                header = f"🔍 *Search results for '{cat.title()}':*\n"
-                return _menu_block(items, header) + "\n\nReply with what you'd like to order! 😋", False
-
-    # ── Order intent: "I want X", "order X", "give me X", "get me X" ─────
-    order_prefixes = ["i want", "i'd like", "i would like", "order", "give me", "get me",
-                      "book", "pre-book", "prebook", "can i get", "please get"]
-    is_order_intent = any(msg_lower.startswith(p) or p in msg_lower for p in order_prefixes)
-
-    # ── General keyword food search ───────────────────────────────────────
-    clean = msg_lower
-    for prefix in order_prefixes:
-        clean = clean.replace(prefix, "")
-    clean = re.sub(r'\b(a|an|the|some|please|me)\b', '', clean)
-
-    # Split by comma/and for multiple items
-    raw_terms = re.split(r'[,&]| and ', clean)
-    search_terms = [t.strip() for t in raw_terms if len(t.strip()) > 2]
-
-    found_items = []
-    for term in search_terms:
-        items = (
-            db.query(models.MenuItem)
-            .filter(models.MenuItem.item_name.ilike(f"%{term}%"), models.MenuItem.is_available == True)
-            .limit(3)
-            .all()
-        )
-        found_items.extend(items)
-
-    # Fallback: word-by-word
-    if not found_items:
-        for word in msg_lower.split():
-            if len(word) > 3:
-                items = (
-                    db.query(models.MenuItem)
-                    .filter(models.MenuItem.item_name.ilike(f"%{word}%"), models.MenuItem.is_available == True)
-                    .limit(3)
-                    .all()
-                )
-                if items:
-                    found_items.extend(items)
-                    break
-
-    # De-duplicate
-    found_items = list({item.id: item for item in found_items}.values())
-
-    if found_items:
-        items_str = "\n".join([f"• {_fmt_item(i)}" for i in found_items])
-        user_states[sender_phone] = {
-            "state": "EXPECTING_PICKUP_TIME",
-            "order_items": found_items
-        }
-        return (
-            f"😋 *Great choice!* I found:\n\n"
-            f"{items_str}\n\n"
-            f"💰 Total: ₹{sum(i.price for i in found_items)}\n\n"
-            f"⏰ *What time would you like to pick up?*\n"
-            f"(e.g. _12:30 PM_, _1:00 PM_, _5 PM_)\n\n"
-            f"_Type 'cancel' to go back._"
-        ), False
-
-    # ── Nothing matched ───────────────────────────────────────────────────
+    # Catch-all
     return (
-        "🤔 I couldn't find that item (it might be out of stock).\n\n"
-        "Try:\n"
-        "• _Show me veg items_\n"
-        "• _What's under ₹100?_\n"
-        "• _Show me Pizza_\n"
-        "• _What restaurants are available?_\n\n"
-        "Or type *Hi* for the main menu."
+        "🤔 I didn't quite catch that.\n\n"
+        "Please type *menu* to see the structured options, or type a descriptive sentence if you want AI assistance!"
     ), False

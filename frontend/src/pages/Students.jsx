@@ -42,7 +42,7 @@ function Students() {
   const topSpender = students[0];
 
   const avatarColor = (name) => {
-    const colors = ['#a855f7','#ec4899','#6366f1','#14b8a6','#f59e0b','#10b981'];
+    const colors = ['#A51C30','#C5A059','#761221','#b81e35','#e5c178','#600a16'];
     return colors[name.charCodeAt(0) % colors.length];
   };
 
@@ -53,7 +53,7 @@ function Students() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem',
           background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)',
           borderRadius: '999px', padding: '0.4rem 1rem' }}>
-          <Users size={16} color="#6366f1" />
+          <Users size={16} color="#C5A059" />
           <span style={{ color: '#818cf8', fontSize: '0.85rem', fontWeight: 600 }}>{totalStudents} students</span>
         </div>
       </header>
@@ -61,8 +61,8 @@ function Students() {
       {/* KPIs */}
       <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', marginBottom: '1.5rem' }}>
         {[
-          { icon: <GraduationCap size={22} color="#6366f1" />, label: 'Total Students', value: totalStudents },
-          { icon: <IndianRupee size={22} color="#a855f7" />, label: 'Lifetime Revenue', value: `₹${totalSpent.toFixed(0)}` },
+          { icon: <GraduationCap size={22} color="#C5A059" />, label: 'Total Students', value: totalStudents },
+          { icon: <IndianRupee size={22} color="#A51C30" />, label: 'Lifetime Revenue', value: `₹${totalSpent.toFixed(0)}` },
           { icon: <Star size={22} color="#f59e0b" />, label: 'Top Customer', value: topSpender?.name || '—' },
         ].map((k, i) => (
           <div key={i} className="glass-card stat-item" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
@@ -97,8 +97,8 @@ function Students() {
           {[['orders', 'Sort by Orders'], ['spent', 'Sort by Spent']].map(([key, label]) => (
             <button key={key} onClick={() => setSortBy(key)} style={{
               padding: '0.5rem 1rem', borderRadius: '999px', cursor: 'pointer',
-              background: sortBy === key ? 'rgba(168,85,247,0.2)' : 'transparent',
-              border: `1px solid ${sortBy === key ? 'rgba(168,85,247,0.5)' : 'var(--glass-border)'}`,
+              background: sortBy === key ? 'rgba(197, 160, 89, 0.2)' : 'transparent',
+              border: `1px solid ${sortBy === key ? 'rgba(197, 160, 89, 0.5)' : 'var(--glass-border)'}`,
               color: sortBy === key ? '#c084fc' : 'var(--text-secondary)',
               fontWeight: 500, fontSize: '0.85rem', transition: 'all 0.2s ease'
             }}>{label}</button>
@@ -119,7 +119,7 @@ function Students() {
               <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                 <div style={{
                   width: 48, height: 48, borderRadius: '50%',
-                  background: `linear-gradient(135deg, ${avatarColor(st.name)}, #1e1b4b)`,
+                  background: `linear-gradient(135deg, ${avatarColor(st.name)}, #0d0914)`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontWeight: 700, fontSize: '1.2rem', color: '#fff', flexShrink: 0
                 }}>
@@ -145,7 +145,7 @@ function Students() {
                   <p style={{ fontWeight: 700, fontSize: '1.1rem' }}>{st.orders}</p>
                   <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Orders</p>
                 </div>
-                <div style={{ background: 'rgba(168,85,247,0.1)', borderRadius: '10px', padding: '0.75rem', textAlign: 'center' }}>
+                <div style={{ background: 'rgba(197, 160, 89, 0.1)', borderRadius: '10px', padding: '0.75rem', textAlign: 'center' }}>
                   <IndianRupee size={16} color="#c084fc" style={{ margin: '0 auto 0.3rem' }} />
                   <p style={{ fontWeight: 700, fontSize: '1.1rem' }}>₹{st.spent.toFixed(0)}</p>
                   <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Spent</p>

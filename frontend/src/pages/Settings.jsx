@@ -24,7 +24,7 @@ function Settings() {
   const handleSave = () => {
     setSaved(true);
     toast.success('Settings saved successfully!', {
-      style: { background: 'rgba(30,27,75,0.95)', color: '#fff', border: '1px solid rgba(168,85,247,0.5)' }
+      style: { background: 'rgba(18,14,28,0.95)', color: '#fff', border: '1px solid rgba(197, 160, 89, 0.5)' }
     });
     setTimeout(() => setSaved(false), 2000);
   };
@@ -36,7 +36,7 @@ function Settings() {
         onClick={onClick}
         style={{
           width: 48, height: 26, borderRadius: 999, cursor: 'pointer',
-          background: on ? 'linear-gradient(90deg, #a855f7, #6366f1)' : 'rgba(255,255,255,0.1)',
+          background: on ? 'linear-gradient(90deg, #C5A059, #A51C30)' : 'rgba(255,255,255,0.1)',
           position: 'relative', transition: 'background 0.3s ease',
           border: '1px solid rgba(255,255,255,0.15)'
         }}
@@ -55,7 +55,7 @@ function Settings() {
   const Section = ({ icon, title, children }) => (
     <div className="glass-card" style={{ marginBottom: '1.5rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
-        <div style={{ background: 'rgba(168,85,247,0.15)', borderRadius: '10px', padding: '0.5rem', display: 'flex' }}>
+        <div style={{ background: 'rgba(197, 160, 89, 0.15)', borderRadius: '10px', padding: '0.5rem', display: 'flex' }}>
           {icon}
         </div>
         <h3 style={{ fontWeight: 700, fontSize: '1rem' }}>{title}</h3>
@@ -80,7 +80,7 @@ function Settings() {
           color: '#fff', outline: 'none', fontSize: '0.9rem',
           transition: 'border 0.2s ease'
         }}
-        onFocus={e => e.target.style.borderColor = '#a855f7'}
+        onFocus={e => e.target.style.borderColor = '#C5A059'}
         onBlur={e => e.target.style.borderColor = 'var(--glass-border)'}
       />
     </div>
@@ -94,7 +94,7 @@ function Settings() {
           onClick={handleSave}
           style={{
             display: 'flex', alignItems: 'center', gap: '0.5rem',
-            background: saved ? 'rgba(74,222,128,0.2)' : 'linear-gradient(135deg, #a855f7, #6366f1)',
+            background: saved ? 'rgba(74,222,128,0.2)' : 'linear-gradient(135deg, #C5A059, #A51C30)',
             color: '#fff', border: saved ? '1px solid #4ade80' : 'none',
             padding: '0.7rem 1.5rem', borderRadius: '10px', cursor: 'pointer',
             fontWeight: 600, fontSize: '0.9rem', transition: 'all 0.3s ease'
@@ -107,7 +107,7 @@ function Settings() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
         <div>
-          <Section icon={<Bot size={20} color="#a855f7" />} title="Bot Configuration">
+          <Section icon={<Bot size={20} color="#C5A059" />} title="Bot Configuration">
             <ToggleSwitch on={settings.botEnabled} onClick={() => toggle('botEnabled')} label="WhatsApp Bot Active" />
             <ToggleSwitch on={settings.autoConfirm} onClick={() => toggle('autoConfirm')} label="Auto-Confirm Orders" />
             <div style={{ padding: '1rem 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
@@ -117,7 +117,7 @@ function Settings() {
               <input
                 type="range" min={10} max={200} value={settings.maxOrdersPerHour}
                 onChange={e => update('maxOrdersPerHour', +e.target.value)}
-                style={{ width: '100%', accentColor: '#a855f7' }}
+                style={{ width: '100%', accentColor: '#C5A059' }}
               />
             </div>
             <div style={{ padding: '1rem 0' }}>
@@ -127,15 +127,15 @@ function Settings() {
               <input
                 type="range" min={10} max={120} value={settings.pickupBuffer}
                 onChange={e => update('pickupBuffer', +e.target.value)}
-                style={{ width: '100%', accentColor: '#6366f1' }}
+                style={{ width: '100%', accentColor: '#A51C30' }}
               />
             </div>
           </Section>
 
-          <Section icon={<Bell size={20} color="#ec4899" />} title="Notifications">
+          <Section icon={<Bell size={20} color="#A51C30" />} title="Notifications">
             <ToggleSwitch on={settings.notifications} onClick={() => toggle('notifications')} label="Browser Notifications" />
             <ToggleSwitch on={settings.darkMode} onClick={() => toggle('darkMode')} label="Dark Mode (always on recommended)" />
-            <div style={{ marginTop: '1rem', padding: '0.75rem 1rem', borderRadius: '10px', background: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.2)' }}>
+            <div style={{ marginTop: '1rem', padding: '0.75rem 1rem', borderRadius: '10px', background: 'rgba(197, 160, 89, 0.08)', border: '1px solid rgba(197, 160, 89, 0.2)' }}>
               <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
                 💡 Notifications fire automatically when new orders arrive via WhatsApp bot.
               </p>

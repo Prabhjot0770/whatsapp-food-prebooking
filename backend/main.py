@@ -1,4 +1,7 @@
 import os
+from dotenv import load_dotenv
+load_dotenv()  # Load .env file so GEMINI_API_KEY etc. are available
+
 from fastapi import FastAPI, Request, Depends, HTTPException, Form, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -80,6 +83,15 @@ async def websocket_endpoint(websocket: WebSocket):
 def read_root():
     return {"message": "WhatsApp Food Bot API is running!"}
 
+# Twilio Client for active message sending
+from twilio.rest import Client as TwilioClient
+
+twilio_client = TwilioClient(
+    os.environ.get("TWILIO_ACCOUNT_SID"),
+    os.environ.get("TWILIO_AUTH_TOKEN")
+)
+TWILIO_WHATSAPP_NUMBER = os.environ.get("TWILIO_WHATSAPP_NUMBER", "whatsapp:+14155238886")
+
 # TWILIO WEBHOOK ENDPOINT
 @app.post("/whatsapp")
 async def whatsapp_webhook(
@@ -98,17 +110,25 @@ async def whatsapp_webhook(
     # Process the message
     response_text, new_order = process_message(sender_phone, user_message, db)
     
+    print(f"[{sender_phone}] IN: {user_message} -> OUT: {response_text[:100]}...")
+    
     if new_order:
         import asyncio
         asyncio.create_task(manager.broadcast("NEW_ORDER"))
-        
-    # Twilio expects TwiML XML format for responses
-    from twilio.twiml.messaging_response import MessagingResponse
-    resp = MessagingResponse()
-    resp.message(response_text)
     
-    from fastapi.responses import Response
-    return Response(content=str(resp), media_type="application/xml")
+    # Actively send the reply via Twilio API (much more reliable than TwiML)
+    try:
+        twilio_client.messages.create(
+            body=response_text,
+            from_=TWILIO_WHATSAPP_NUMBER,
+            to=From
+        )
+        print(f"[{sender_phone}] ✅ Message sent via Twilio API")
+    except Exception as e:
+        print(f"[{sender_phone}] ❌ Twilio API error: {e}")
+    
+    # Return empty 200 OK (we already sent the message above)
+    return {"status": "ok"}
 
 @app.post("/api/menu/{item_id}/toggle")
 def toggle_menu_item(item_id: int, db: Session = Depends(get_db)):

@@ -68,8 +68,8 @@ function Dashboard() {
           <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#a855f7" stopOpacity={0.8}/>
-                <stop offset="95%" stopColor="#a855f7" stopOpacity={0}/>
+                <stop offset="5%" stopColor="#C5A059" stopOpacity={0.8}/>
+                <stop offset="95%" stopColor="#C5A059" stopOpacity={0}/>
               </linearGradient>
             </defs>
             <XAxis dataKey="name" stroke="var(--text-secondary)" />
@@ -79,7 +79,7 @@ function Dashboard() {
               contentStyle={{ backgroundColor: 'rgba(30, 27, 75, 0.9)', border: '1px solid var(--glass-border)', borderRadius: '8px' }}
               itemStyle={{ color: '#fff' }}
             />
-            <Area type="monotone" dataKey="revenue" stroke="#a855f7" fillOpacity={1} fill="url(#colorRevenue)" />
+            <Area type="monotone" dataKey="revenue" stroke="#C5A059" fillOpacity={1} fill="url(#colorRevenue)" />
           </AreaChart>
         </ResponsiveContainer>
       </div>

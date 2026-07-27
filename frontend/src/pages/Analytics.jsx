@@ -6,7 +6,7 @@ import {
 import { TrendingUp, Award, Clock, Users } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 
-const COLORS = ['#a855f7', '#ec4899', '#6366f1', '#14b8a6', '#f59e0b', '#10b981'];
+const COLORS = ['#A51C30', '#C5A059', '#761221', '#b81e35', '#e5c178', '#600a16'];
 
 function Analytics() {
   const [orders, setOrders] = useState([]);
@@ -73,10 +73,10 @@ function Analytics() {
     if (active && payload && payload.length) {
       return (
         <div style={{
-          background: 'rgba(15,10,40,0.95)', border: '1px solid rgba(168,85,247,0.4)',
+          background: 'rgba(15,10,40,0.95)', border: '1px solid rgba(197, 160, 89, 0.4)',
           borderRadius: '10px', padding: '0.75rem 1rem', fontSize: '0.85rem'
         }}>
-          <p style={{ color: '#a855f7', fontWeight: 700 }}>{label}</p>
+          <p style={{ color: '#C5A059', fontWeight: 700 }}>{label}</p>
           {payload.map((p, i) => (
             <p key={i} style={{ color: '#fff' }}>
               {p.name === 'revenue' ? `₹${p.value.toFixed(0)}` : p.value}
@@ -105,8 +105,8 @@ function Analytics() {
       {/* KPI Cards */}
       <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
         {[
-          { icon: <TrendingUp size={22} color="#a855f7" />, label: 'Total Revenue', value: `₹${totalRevenue.toFixed(0)}` },
-          { icon: <Users size={22} color="#ec4899" />, label: 'Total Orders', value: orders.length },
+          { icon: <TrendingUp size={22} color="#C5A059" />, label: 'Total Revenue', value: `₹${totalRevenue.toFixed(0)}` },
+          { icon: <Users size={22} color="#A51C30" />, label: 'Total Orders', value: orders.length },
           { icon: <Award size={22} color="#f59e0b" />, label: 'Avg Order Value', value: `₹${avgOrder}` },
           { icon: <Clock size={22} color="#14b8a6" />, label: 'Peak Hour', value: peakHour?.hour || '-' },
         ].map((kpi, i) => (
@@ -175,7 +175,7 @@ function Analytics() {
               <XAxis dataKey="hour" stroke="var(--text-secondary)" tick={{ fontSize: 10 }} />
               <YAxis stroke="var(--text-secondary)" tick={{ fontSize: 10 }} allowDecimals={false} />
               <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="orders" radius={[4, 4, 0, 0]} fill="#6366f1" />
+              <Bar dataKey="orders" radius={[4, 4, 0, 0]} fill="#C5A059" />
             </BarChart>
           </ResponsiveContainer>
         </div>

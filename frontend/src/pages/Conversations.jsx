@@ -84,15 +84,15 @@ function Conversations() {
                   padding: '1rem 1.25rem',
                   borderBottom: '1px solid rgba(255,255,255,0.05)',
                   cursor: 'pointer',
-                  background: selected.phone === conv.phone ? 'rgba(168,85,247,0.15)' : 'transparent',
-                  borderLeft: selected.phone === conv.phone ? '3px solid #a855f7' : '3px solid transparent',
+                  background: selected.phone === conv.phone ? 'rgba(197, 160, 89, 0.15)' : 'transparent',
+                  borderLeft: selected.phone === conv.phone ? '3px solid #C5A059' : '3px solid transparent',
                   transition: 'all 0.2s ease',
                   display: 'flex', gap: '0.75rem', alignItems: 'flex-start'
                 }}
               >
                 <div style={{
                   width: 40, height: 40, borderRadius: '50%',
-                  background: `linear-gradient(135deg, ${['#a855f7','#ec4899','#6366f1'][i % 3]}, #1e1b4b)`,
+                  background: `linear-gradient(135deg, ${['#A51C30','#C5A059','#761221'][i % 3]}, #0d0914)`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   flexShrink: 0, fontSize: '1rem', fontWeight: 700, color: '#fff'
                 }}>
@@ -109,7 +109,7 @@ function Conversations() {
                     </p>
                     {conv.unread > 0 && (
                       <span style={{
-                        background: '#a855f7', color: '#fff', borderRadius: '999px',
+                        background: '#A51C30', color: '#fff', borderRadius: '999px',
                         fontSize: '0.7rem', fontWeight: 700, padding: '0.1rem 0.45rem', flexShrink: 0
                       }}>{conv.unread}</span>
                     )}
@@ -130,7 +130,7 @@ function Conversations() {
           }}>
             <div style={{
               width: 44, height: 44, borderRadius: '50%',
-              background: 'linear-gradient(135deg, #a855f7, #1e1b4b)',
+              background: 'linear-gradient(135deg, #C5A059, #0d0914)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontWeight: 700, fontSize: '1.1rem', color: '#fff'
             }}>
@@ -157,7 +157,7 @@ function Conversations() {
                 {msg.from === 'student' && (
                   <div style={{
                     width: 28, height: 28, borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #ec4899, #1e1b4b)',
+                    background: 'linear-gradient(135deg, #C5A059, #050408)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: '0.75rem', fontWeight: 700, color: '#fff', flexShrink: 0
                   }}>
@@ -168,7 +168,7 @@ function Conversations() {
                   maxWidth: '70%',
                   background: msg.from === 'student'
                     ? 'rgba(255,255,255,0.1)'
-                    : 'linear-gradient(135deg, rgba(168,85,247,0.4), rgba(99,102,241,0.4))',
+                    : 'linear-gradient(135deg, rgba(165, 28, 48, 0.4), rgba(197, 160, 89, 0.4))',
                   borderRadius: msg.from === 'student' ? '16px 16px 16px 4px' : '16px 16px 4px 16px',
                   padding: '0.75rem 1rem',
                   border: '1px solid rgba(255,255,255,0.12)'
@@ -179,7 +179,7 @@ function Conversations() {
                 {msg.from === 'bot' && (
                   <div style={{
                     width: 28, height: 28, borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #6366f1, #1e1b4b)',
+                    background: 'linear-gradient(135deg, #A51C30, #050408)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
                   }}>
                     <Bot size={14} color="#fff" />
