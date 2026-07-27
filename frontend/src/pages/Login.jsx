@@ -176,7 +176,7 @@ function Login({ onLoginSuccess }) {
               />
               <span>Remember session</span>
             </label>
-            <a href="#forgot" onClick={(e) => { e.preventDefault(); alert('Demo Notice: Use admin / admin123 to log in.'); }} className="harvard-link">
+            <a href="#forgot" onClick={(e) => { e.preventDefault(); alert('Please contact system administrator to reset password.'); }} className="harvard-link">
               Forgot password?
             </a>
           </div>
@@ -193,21 +193,6 @@ function Login({ onLoginSuccess }) {
             )}
           </button>
         </form>
-
-        {/* Demo Credentials Helper */}
-        <div className="harvard-demo-box">
-          <div className="demo-box-header">
-            <KeyRound size={16} color="#C5A059" />
-            <span>Demo Access Credentials</span>
-          </div>
-          <p style={{ fontSize: '0.8rem', color: '#cbd5e1', margin: '0.3rem 0 0.6rem 0' }}>
-            Username: <strong style={{ color: '#fff' }}>admin</strong> &bull; Password: <strong style={{ color: '#fff' }}>admin123</strong>
-          </p>
-          <button type="button" onClick={handleQuickFill} className="harvard-quickfill-btn">
-            <CheckCircle2 size={14} />
-            <span>One-Click Auto Fill</span>
-          </button>
-        </div>
 
         {/* Footer info */}
         <div className="harvard-footer">
